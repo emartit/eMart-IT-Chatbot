@@ -47,7 +47,7 @@
       bottom: 96px;
       right: 24px;
       width: 340px;
-      max-height: 480px;
+      max-height: 500px;
       border-radius: 16px;
       background: #ffffff;
       box-shadow: 0 8px 32px rgba(0,0,0,0.14);
@@ -93,9 +93,18 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       background: #f5f7fb;
     }
+
+    .ematity-msg-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .ematity-msg-wrap.user { align-items: flex-end; }
+    .ematity-msg-wrap.bot { align-items: flex-start; }
+
     .ematity-msg {
       max-width: 82%;
       padding: 9px 13px;
@@ -104,17 +113,46 @@
       word-wrap: break-word;
     }
     .ematity-msg-bot {
-      align-self: flex-start;
       background: #ffffff;
       border: 1px solid #e5e7eb;
       border-radius: 4px 14px 14px 14px;
       color: #111827;
     }
     .ematity-msg-user {
-      align-self: flex-end;
       background: #2563eb;
       color: white;
       border-radius: 14px 4px 14px 14px;
+    }
+    .ematity-timestamp {
+      font-size: 10.5px;
+      color: #9ca3af;
+      padding: 0 4px;
+    }
+
+    /* Typing indicator */
+    .ematity-typing {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 14px;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px 14px 14px 14px;
+      width: fit-content;
+    }
+    .ematity-typing span {
+      width: 7px;
+      height: 7px;
+      background: #9ca3af;
+      border-radius: 50%;
+      display: inline-block;
+      animation: ematityBounce 1.2s infinite;
+    }
+    .ematity-typing span:nth-child(2) { animation-delay: 0.2s; }
+    .ematity-typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes ematityBounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-5px); opacity: 1; }
     }
 
     #ematity-input-row {
@@ -137,6 +175,8 @@
       color: #111827;
     }
     #ematity-input:focus { border-color: #2563eb; background: #fff; }
+    #ematity-input:disabled { opacity: 0.6; cursor: not-allowed; }
+
     #ematity-send-btn {
       width: 34px; height: 34px;
       border-radius: 50%;
@@ -144,9 +184,10 @@
       border: none;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; flex-shrink: 0;
-      transition: background 0.15s;
+      transition: background 0.15s, opacity 0.15s;
     }
     #ematity-send-btn:hover { background: #1d4ed8; }
+    #ematity-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     #ematity-send-btn svg { width: 17px; height: 17px; fill: white; }
 
     #ematity-footer {
@@ -191,7 +232,10 @@
     </div>
 
     <div id="ematity-messages">
-      <div class="ematity-msg ematity-msg-bot">👋 Hi there! How can I help you today?</div>
+      <div class="ematity-msg-wrap bot">
+        <div class="ematity-msg ematity-msg-bot">👋 Hi there! How can I help you today?</div>
+        <div class="ematity-timestamp">Just now</div>
+      </div>
     </div>
 
     <div id="ematity-input-row">
@@ -209,6 +253,15 @@
   <script>
     var ematityOpen = false;
 
+    function ematityGetTime() {
+      var now = new Date();
+      var h = now.getHours();
+      var m = now.getMinutes();
+      var ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
+    }
+
     function ematityToggle() {
       ematityOpen = !ematityOpen;
       var win = document.getElementById('ematity-chat-window');
@@ -224,25 +277,53 @@
 
     function ematitySend() {
       var input = document.getElementById('ematity-input');
+      var sendBtn = document.getElementById('ematity-send-btn');
       var text = input.value.trim();
       if (!text) return;
 
       var msgs = document.getElementById('ematity-messages');
 
-      var userDiv = document.createElement('div');
-      userDiv.className = 'ematity-msg ematity-msg-user';
-      userDiv.textContent = text;
-      msgs.appendChild(userDiv);
+      // Add user message
+      var userWrap = document.createElement('div');
+      userWrap.className = 'ematity-msg-wrap user';
+      userWrap.innerHTML =
+        '<div class="ematity-msg ematity-msg-user">' + text + '</div>' +
+        '<div class="ematity-timestamp">' + ematityGetTime() + '</div>';
+      msgs.appendChild(userWrap);
       msgs.scrollTop = msgs.scrollHeight;
-      input.value = '';
 
+      input.value = '';
+      input.disabled = true;
+      sendBtn.disabled = true;
+
+      // Show typing indicator
+      var typingWrap = document.createElement('div');
+      typingWrap.className = 'ematity-msg-wrap bot';
+      typingWrap.id = 'ematity-typing';
+      typingWrap.innerHTML =
+        '<div class="ematity-typing">' +
+        '<span></span><span></span><span></span>' +
+        '</div>';
+      msgs.appendChild(typingWrap);
+      msgs.scrollTop = msgs.scrollHeight;
+
+      // Replace typing with bot reply
       setTimeout(function() {
-        var botDiv = document.createElement('div');
-        botDiv.className = 'ematity-msg ematity-msg-bot';
-        botDiv.textContent = 'Thanks for your message! We will connect the AI brain in Phase 2.';
-        msgs.appendChild(botDiv);
+        var typing = document.getElementById('ematity-typing');
+        if (typing) typing.remove();
+
+        var botWrap = document.createElement('div');
+        botWrap.className = 'ematity-msg-wrap bot';
+        botWrap.innerHTML =
+          '<div class="ematity-msg ematity-msg-bot">Thanks for your message! We will connect the AI brain in Phase 2.</div>' +
+          '<div class="ematity-timestamp">' + ematityGetTime() + '</div>';
+        msgs.appendChild(botWrap);
         msgs.scrollTop = msgs.scrollHeight;
-      }, 700);
+
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+      }, 1500);
     }
   </script>
 
