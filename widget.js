@@ -29,8 +29,7 @@
       position: absolute; top: 2px; right: 2px;
       width: 14px; height: 14px;
       background: #22c55e; border-radius: 50%;
-      border: 2px solid white;
-      z-index: 3;
+      border: 2px solid white; z-index: 3;
     }
     #emt-green-dot.pulse { animation: emtPulse 1.4s infinite; }
     #emt-live-badge {
@@ -40,8 +39,7 @@
       padding: 4px 10px; border-radius: 20px;
       display: flex; align-items: center; gap: 5px;
       z-index: 9999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      letter-spacing: 0.5px;
-      transition: opacity 0.2s;
+      letter-spacing: 0.5px; transition: opacity 0.2s;
     }
     #emt-live-badge-dot {
       width: 7px; height: 7px;
@@ -74,7 +72,16 @@
     }
     #emt-head-txt { flex: 1; }
     #emt-head-name { color: white; font-size: 14px; font-weight: 600; }
-    #emt-head-status { color: rgba(255,255,255,0.78); font-size: 11px; margin-top: 1px; }
+    #emt-head-status {
+      font-size: 11px; margin-top: 3px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    #emt-status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #22c55e; flex-shrink: 0;
+      animation: emtPulse 1.4s infinite;
+    }
+    #emt-status-text { color: rgba(255,255,255,0.85); }
     #emt-x {
       background: none; border: none; color: rgba(255,255,255,0.75);
       font-size: 20px; cursor: pointer; line-height: 1; padding: 2px 4px;
@@ -168,7 +175,10 @@
         <div id="emt-av">M</div>
         <div id="emt-head-txt">
           <div id="emt-head-name">eMart IT Assistant</div>
-          <div id="emt-head-status">&#9679; Online — replies instantly</div>
+          <div id="emt-head-status">
+            <div id="emt-status-dot"></div>
+            <span id="emt-status-text">Online &mdash; replies instantly</span>
+          </div>
         </div>
         <button id="emt-x" aria-label="Close">&#10005;</button>
       </div>
