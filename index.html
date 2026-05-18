@@ -3,330 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>eMart IT Chat Widget</title>
+  <title>eMart IT Chat Widget — Test Page</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    #ematity-bubble-btn {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      width: 58px;
-      height: 58px;
-      border-radius: 50%;
-      background: #2563eb;
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      transition: transform 0.15s;
+    body { font-family: sans-serif; padding: 40px; color: #333; }
+    h1 { font-size: 24px; margin-bottom: 12px; }
+    p { color: #666; margin-bottom: 10px; }
+    .code-box {
+      background: #1e1e2e; color: #cdd6f4; padding: 16px 20px;
+      border-radius: 10px; font-family: monospace; font-size: 13px;
+      margin: 20px 0; position: relative;
     }
-    #ematity-bubble-btn:hover { transform: scale(1.08); }
-    #ematity-bubble-btn svg { width: 28px; height: 28px; fill: white; }
-
-    #ematity-notif-dot {
-      position: absolute;
-      top: -3px;
-      right: -3px;
-      width: 18px;
-      height: 18px;
-      background: #ef4444;
-      border-radius: 50%;
-      font-size: 11px;
-      font-weight: 600;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .copy-btn {
+      position: absolute; top: 10px; right: 10px;
+      background: #2563eb; color: white; border: none;
+      padding: 5px 12px; border-radius: 6px; cursor: pointer;
+      font-size: 12px;
     }
-
-    #ematity-chat-window {
-      position: fixed;
-      bottom: 96px;
-      right: 24px;
-      width: 340px;
-      max-height: 500px;
-      border-radius: 16px;
-      background: #ffffff;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.14);
-      border: 1.5px solid #d1d5db;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      z-index: 9998;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      transition: opacity 0.2s, transform 0.2s;
-    }
-    #ematity-chat-window.ematity-hidden {
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(10px);
-    }
-
-    #ematity-header {
-      background: #2563eb;
-      padding: 14px 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-    #ematity-avatar {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: rgba(255,255,255,0.2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 15px; font-weight: 600; color: white;
-    }
-    #ematity-header-text { flex: 1; }
-    #ematity-header-name { color: white; font-size: 14px; font-weight: 600; }
-    #ematity-header-status { color: rgba(255,255,255,0.78); font-size: 11px; margin-top: 1px; }
-    #ematity-close-btn {
-      background: none; border: none; color: rgba(255,255,255,0.75);
-      font-size: 20px; cursor: pointer; line-height: 1; padding: 2px 4px;
-    }
-    #ematity-close-btn:hover { color: white; }
-
-    #ematity-messages {
-      flex: 1;
-      padding: 14px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      background: #f5f7fb;
-    }
-
-    .ematity-msg-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-    .ematity-msg-wrap.user { align-items: flex-end; }
-    .ematity-msg-wrap.bot { align-items: flex-start; }
-
-    .ematity-msg {
-      max-width: 82%;
-      padding: 9px 13px;
-      font-size: 13.5px;
-      line-height: 1.45;
-      word-wrap: break-word;
-    }
-    .ematity-msg-bot {
-      background: #ffffff;
-      border: 1px solid #e5e7eb;
-      border-radius: 4px 14px 14px 14px;
-      color: #111827;
-    }
-    .ematity-msg-user {
-      background: #2563eb;
-      color: white;
-      border-radius: 14px 4px 14px 14px;
-    }
-    .ematity-timestamp {
-      font-size: 10.5px;
-      color: #9ca3af;
-      padding: 0 4px;
-    }
-
-    /* Typing indicator */
-    .ematity-typing {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 10px 14px;
-      background: #ffffff;
-      border: 1px solid #e5e7eb;
-      border-radius: 4px 14px 14px 14px;
-      width: fit-content;
-    }
-    .ematity-typing span {
-      width: 7px;
-      height: 7px;
-      background: #9ca3af;
-      border-radius: 50%;
-      display: inline-block;
-      animation: ematityBounce 1.2s infinite;
-    }
-    .ematity-typing span:nth-child(2) { animation-delay: 0.2s; }
-    .ematity-typing span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes ematityBounce {
-      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-      30% { transform: translateY(-5px); opacity: 1; }
-    }
-
-    #ematity-input-row {
-      padding: 10px 12px;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      border-top: 1px solid #e5e7eb;
-      background: #ffffff;
-      flex-shrink: 0;
-    }
-    #ematity-input {
-      flex: 1;
-      border: 1px solid #d1d5db;
-      border-radius: 22px;
-      padding: 8px 14px;
-      font-size: 13.5px;
-      outline: none;
-      background: #f9fafb;
-      color: #111827;
-    }
-    #ematity-input:focus { border-color: #2563eb; background: #fff; }
-    #ematity-input:disabled { opacity: 0.6; cursor: not-allowed; }
-
-    #ematity-send-btn {
-      width: 34px; height: 34px;
-      border-radius: 50%;
-      background: #2563eb;
-      border: none;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0;
-      transition: background 0.15s, opacity 0.15s;
-    }
-    #ematity-send-btn:hover { background: #1d4ed8; }
-    #ematity-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    #ematity-send-btn svg { width: 17px; height: 17px; fill: white; }
-
-    #ematity-footer {
-      text-align: center;
-      font-size: 10.5px;
-      color: #9ca3af;
-      padding: 5px 0 7px;
-      background: #fff;
-    }
-
-    @media (max-width: 480px) {
-      #ematity-chat-window {
-        width: calc(100vw - 20px);
-        right: 10px;
-        bottom: 88px;
-      }
-      #ematity-bubble-btn { right: 16px; bottom: 16px; }
-    }
+    .copy-btn:hover { background: #1d4ed8; }
   </style>
 </head>
 <body>
-
-  <div style="padding: 40px; font-family: sans-serif; color: #333;">
-    <h1 style="font-size: 24px; margin-bottom: 12px;">Your Client's Website</h1>
-    <p style="color: #666;">The chat bubble appears in the bottom-right corner of any website.</p>
+  <h1>eMart IT Chatbot — Embed Test Page</h1>
+  <p>This page demonstrates the embed script. The chat bubble below is loaded via the embed script — exactly how it will work on any client website.</p>
+  <p><strong>Embed code for this demo:</strong></p>
+  <div class="code-box">
+    &lt;script src="https://emartit.github.io/eMart-IT-Chatbot/widget.js?client=demo"&gt;&lt;/script&gt;
+    <button class="copy-btn" onclick="navigator.clipboard.writeText('<script src=\'https://emartit.github.io/eMart-IT-Chatbot/widget.js?client=demo\'></script>');this.textContent='Copied!'">Copy</button>
   </div>
+  <p>To add this chatbot to any website, paste the line above before the closing &lt;/body&gt; tag.</p>
 
-  <button id="ematity-bubble-btn" onclick="ematityToggle()" aria-label="Open chat">
-    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
-    <div id="ematity-notif-dot">1</div>
-  </button>
-
-  <div id="ematity-chat-window" class="ematity-hidden">
-
-    <div id="ematity-header">
-      <div id="ematity-avatar">M</div>
-      <div id="ematity-header-text">
-        <div id="ematity-header-name">eMart IT Assistant</div>
-        <div id="ematity-header-status">● Online — replies instantly</div>
-      </div>
-      <button id="ematity-close-btn" onclick="ematityToggle()" aria-label="Close chat">✕</button>
-    </div>
-
-    <div id="ematity-messages">
-      <div class="ematity-msg-wrap bot">
-        <div class="ematity-msg ematity-msg-bot">👋 Hi there! How can I help you today?</div>
-        <div class="ematity-timestamp">Just now</div>
-      </div>
-    </div>
-
-    <div id="ematity-input-row">
-      <input id="ematity-input" type="text" placeholder="Type a message…"
-        onkeydown="if(event.key==='Enter') ematitySend()" />
-      <button id="ematity-send-btn" onclick="ematitySend()" aria-label="Send message">
-        <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
-      </button>
-    </div>
-
-    <div id="ematity-footer">Powered by eMart IT · emartit.com</div>
-
-  </div>
-
-  <script>
-    var ematityOpen = false;
-
-    function ematityGetTime() {
-      var now = new Date();
-      var h = now.getHours();
-      var m = now.getMinutes();
-      var ampm = h >= 12 ? 'PM' : 'AM';
-      h = h % 12 || 12;
-      return h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
-    }
-
-    function ematityToggle() {
-      ematityOpen = !ematityOpen;
-      var win = document.getElementById('ematity-chat-window');
-      var dot = document.getElementById('ematity-notif-dot');
-      if (ematityOpen) {
-        win.classList.remove('ematity-hidden');
-        dot.style.display = 'none';
-        document.getElementById('ematity-input').focus();
-      } else {
-        win.classList.add('ematity-hidden');
-      }
-    }
-
-    function ematitySend() {
-      var input = document.getElementById('ematity-input');
-      var sendBtn = document.getElementById('ematity-send-btn');
-      var text = input.value.trim();
-      if (!text) return;
-
-      var msgs = document.getElementById('ematity-messages');
-
-      // Add user message
-      var userWrap = document.createElement('div');
-      userWrap.className = 'ematity-msg-wrap user';
-      userWrap.innerHTML =
-        '<div class="ematity-msg ematity-msg-user">' + text + '</div>' +
-        '<div class="ematity-timestamp">' + ematityGetTime() + '</div>';
-      msgs.appendChild(userWrap);
-      msgs.scrollTop = msgs.scrollHeight;
-
-      input.value = '';
-      input.disabled = true;
-      sendBtn.disabled = true;
-
-      // Show typing indicator
-      var typingWrap = document.createElement('div');
-      typingWrap.className = 'ematity-msg-wrap bot';
-      typingWrap.id = 'ematity-typing';
-      typingWrap.innerHTML =
-        '<div class="ematity-typing">' +
-        '<span></span><span></span><span></span>' +
-        '</div>';
-      msgs.appendChild(typingWrap);
-      msgs.scrollTop = msgs.scrollHeight;
-
-      // Replace typing with bot reply
-      setTimeout(function() {
-        var typing = document.getElementById('ematity-typing');
-        if (typing) typing.remove();
-
-        var botWrap = document.createElement('div');
-        botWrap.className = 'ematity-msg-wrap bot';
-        botWrap.innerHTML =
-          '<div class="ematity-msg ematity-msg-bot">Thanks for your message! We will connect the AI brain in Phase 2.</div>' +
-          '<div class="ematity-timestamp">' + ematityGetTime() + '</div>';
-        msgs.appendChild(botWrap);
-        msgs.scrollTop = msgs.scrollHeight;
-
-        input.disabled = false;
-        sendBtn.disabled = false;
-        input.focus();
-      }, 1500);
-    }
-  </script>
-
+  <!-- This is the embed script loading the widget -->
+  <script src="widget.js?client=demo"></script>
 </body>
 </html>
