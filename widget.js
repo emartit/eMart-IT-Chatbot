@@ -17,15 +17,39 @@
       background: #2563eb; border: none; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       z-index: 9999; transition: transform 0.15s;
-      box-shadow: 0 4px 16px rgba(37,99,235,0.4);
+      animation: emtGlow 2s ease-in-out infinite;
     }
     #emt-btn:hover { transform: scale(1.08); }
-    #emt-btn svg { width: 28px; height: 28px; fill: white; }
-    #emt-dot {
-      position: absolute; top: -3px; right: -3px;
-      width: 18px; height: 18px; background: #ef4444;
-      border-radius: 50%; font-size: 11px; font-weight: 600;
-      color: white; display: flex; align-items: center; justify-content: center;
+    #emt-btn svg { width: 27px; height: 27px; fill: white; }
+    @keyframes emtGlow {
+      0%,100% { box-shadow: 0 0 0 0px rgba(37,99,235,0.6), 0 0 0 0px rgba(37,99,235,0.3); }
+      50% { box-shadow: 0 0 0 10px rgba(37,99,235,0.2), 0 0 0 20px rgba(37,99,235,0); }
+    }
+    #emt-green-dot {
+      position: absolute; top: 2px; right: 2px;
+      width: 14px; height: 14px;
+      background: #22c55e; border-radius: 50%;
+      border: 2px solid white;
+      animation: emtPulse 1.4s infinite;
+      z-index: 3;
+    }
+    #emt-live-badge {
+      position: fixed; bottom: 90px; right: 24px;
+      background: #1e293b; color: white;
+      font-size: 11px; font-weight: 600;
+      padding: 4px 10px; border-radius: 20px;
+      display: flex; align-items: center; gap: 5px;
+      z-index: 9999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      letter-spacing: 0.5px;
+    }
+    #emt-live-badge-dot {
+      width: 7px; height: 7px;
+      background: #22c55e; border-radius: 50%;
+      animation: emtPulse 1.4s infinite;
+    }
+    @keyframes emtPulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.7); }
     }
     #emt-win {
       position: fixed; bottom: 96px; right: 24px;
@@ -121,6 +145,7 @@
     @media (max-width: 480px) {
       #emt-win { width: calc(100vw - 20px); right: 10px; bottom: 88px; }
       #emt-btn { right: 16px; bottom: 16px; }
+      #emt-live-badge { right: 16px; bottom: 86px; }
     }
   `;
 
@@ -129,9 +154,13 @@
   document.head.appendChild(style);
 
   var HTML = `
+    <div id="emt-live-badge">
+      <div id="emt-live-badge-dot"></div>
+      LIVE
+    </div>
     <button id="emt-btn" aria-label="Open chat">
       <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
-      <div id="emt-dot">1</div>
+      <div id="emt-green-dot"></div>
     </button>
     <div id="emt-win" class="emt-hide">
       <div id="emt-head">
@@ -175,7 +204,7 @@
   function toggle() {
     isOpen = !isOpen;
     document.getElementById('emt-win').classList.toggle('emt-hide', !isOpen);
-    document.getElementById('emt-dot').style.display = isOpen ? 'none' : 'flex';
+    document.getElementById('emt-live-badge').style.display = isOpen ? 'none' : 'flex';
     if (isOpen) document.getElementById('emt-inp').focus();
   }
 
