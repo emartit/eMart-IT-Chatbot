@@ -17,10 +17,10 @@
       background: #2563eb; border: none; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       z-index: 9999; transition: transform 0.15s;
-      animation: emtGlow 2s ease-in-out infinite;
     }
     #emt-btn:hover { transform: scale(1.08); }
     #emt-btn svg { width: 27px; height: 27px; fill: white; }
+    #emt-btn.glow { animation: emtGlow 2s ease-in-out infinite; }
     @keyframes emtGlow {
       0%,100% { box-shadow: 0 0 0 0px rgba(37,99,235,0.6), 0 0 0 0px rgba(37,99,235,0.3); }
       50% { box-shadow: 0 0 0 10px rgba(37,99,235,0.2), 0 0 0 20px rgba(37,99,235,0); }
@@ -30,9 +30,9 @@
       width: 14px; height: 14px;
       background: #22c55e; border-radius: 50%;
       border: 2px solid white;
-      animation: emtPulse 1.4s infinite;
       z-index: 3;
     }
+    #emt-green-dot.pulse { animation: emtPulse 1.4s infinite; }
     #emt-live-badge {
       position: fixed; bottom: 90px; right: 24px;
       background: #1e293b; color: white;
@@ -41,12 +41,13 @@
       display: flex; align-items: center; gap: 5px;
       z-index: 9999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       letter-spacing: 0.5px;
+      transition: opacity 0.2s;
     }
     #emt-live-badge-dot {
       width: 7px; height: 7px;
       background: #22c55e; border-radius: 50%;
-      animation: emtPulse 1.4s infinite;
     }
+    #emt-live-badge-dot.pulse { animation: emtPulse 1.4s infinite; }
     @keyframes emtPulse {
       0%,100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.3; transform: scale(0.7); }
@@ -156,7 +157,7 @@
   var HTML = `
     <div id="emt-live-badge">
       <div id="emt-live-badge-dot"></div>
-      LIVE
+      Online
     </div>
     <button id="emt-btn" aria-label="Open chat">
       <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
@@ -193,6 +194,18 @@
 
   var isOpen = false;
 
+  function startAnimation() {
+    document.getElementById('emt-btn').classList.add('glow');
+    document.getElementById('emt-green-dot').classList.add('pulse');
+    document.getElementById('emt-live-badge-dot').classList.add('pulse');
+  }
+
+  function stopAnimation() {
+    document.getElementById('emt-btn').classList.remove('glow');
+    document.getElementById('emt-green-dot').classList.remove('pulse');
+    document.getElementById('emt-live-badge-dot').classList.remove('pulse');
+  }
+
   function getTime() {
     var now = new Date();
     var h = now.getHours(); var m = now.getMinutes();
@@ -205,7 +218,12 @@
     isOpen = !isOpen;
     document.getElementById('emt-win').classList.toggle('emt-hide', !isOpen);
     document.getElementById('emt-live-badge').style.display = isOpen ? 'none' : 'flex';
-    if (isOpen) document.getElementById('emt-inp').focus();
+    if (isOpen) {
+      stopAnimation();
+      document.getElementById('emt-inp').focus();
+    } else {
+      startAnimation();
+    }
   }
 
   function send() {
@@ -244,5 +262,7 @@
   document.getElementById('emt-x').onclick = toggle;
   document.getElementById('emt-send').onclick = send;
   document.getElementById('emt-inp').onkeydown = function(e) { if (e.key === 'Enter') send(); };
+
+  startAnimation();
 
 })();
