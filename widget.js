@@ -1,335 +1,401 @@
 (function() {
-  const scriptTag = document.currentScript || (function() {
-    const scripts = document.getElementsByTagName('script');
-    return scripts[scripts.length - 1];
-  })();
 
-  const scriptSrc = scriptTag.src;
-  const urlParams = new URLSearchParams(scriptSrc.split('?')[1] || '');
-  const clientId = urlParams.get('client');
+  var clientId = 'demo';
+  try {
+    var scripts = document.querySelectorAll('script[src*="widget.js"]');
+    for (var i = 0; i < scripts.length; i++) {
+      var src = scripts[i].getAttribute('src');
+      var match = src.match(/client=([^&]+)/);
+      if (match) { clientId = match[1]; break; }
+    }
+  } catch(e) {}
 
-  if (!clientId) {
-    console.error('eMart IT Chatbot: No client ID provided');
-    return;
-  }
+  var API = 'https://web-production-1c820.up.railway.app';
+  var conversationHistory = [];
+  var isOpen = false;
+  var isTyping = false;
 
-  const API = 'https://web-production-1c820.up.railway.app';
+  var settings = {
+    botName: 'eMart IT Assistant',
+    welcomeMessage: 'Hi there! How can I help you today? 😊',
+    headerColor: '#2563eb',
+    bubbleColor: '#2563eb',
+    avatar: 'M',
+    position: 'right'
+  };
 
-  const AVATARS = {
+  var AVATARS = {
     robot: '🤖', woman: '👩', man: '👨', star: '⭐', chat: '💬',
     heart: '❤️', lightning: '⚡', diamond: '💎', fire: '🔥', crown: '👑'
   };
 
-  let settings = {
-    botName: 'Assistant',
-    welcomeMessage: 'Hi! How can I help you today? 😊',
-    headerColor: '#1a569a',
-    bubbleColor: '#1a569a',
-    avatar: 'robot',
-    position: 'right'
-  };
-
-  let conversationHistory = [];
-  let isOpen = false;
-  let isTyping = false;
-
-  // ── STYLES ──────────────────────────────────────────────
-  const style = document.createElement('style');
-  style.textContent = `
-    #emartit-widget * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
-
-    #emartit-bubble {
-      position: fixed; bottom: 24px; width: 60px; height: 60px;
-      border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      font-size: 28px; cursor: pointer; z-index: 999999;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-      transition: transform 0.2s, box-shadow 0.2s;
-      animation: emartit-pulse 3s infinite;
-    }
-    #emartit-bubble:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 28px rgba(0,0,0,0.35);
-    }
-    @keyframes emartit-pulse {
-      0%, 100% { box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
-      50% { box-shadow: 0 4px 30px rgba(0,0,0,0.4), 0 0 0 8px rgba(255,255,255,0.1); }
-    }
-
-    #emartit-window {
-      position: fixed; bottom: 100px; width: 360px; height: 520px;
-      background: white; border-radius: 16px; z-index: 999998;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.18);
-      display: none; flex-direction: column; overflow: hidden;
-      animation: emartit-slide-up 0.3s ease-out;
-    }
-    #emartit-window.open { display: flex; }
-    @keyframes emartit-slide-up {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    #emartit-header {
-      padding: 14px 16px; color: white;
-      display: flex; align-items: center; gap: 10px;
-      flex-shrink: 0;
-    }
-    #emartit-header-avatar { font-size: 22px; }
-    #emartit-header-name { font-size: 15px; font-weight: 700; flex: 1; }
-    #emartit-header-status { font-size: 11px; opacity: 0.85; }
-    #emartit-close {
-      background: rgba(255,255,255,0.2); border: none; color: white;
-      width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
-      font-size: 14px; display: flex; align-items: center; justify-content: center;
-    }
-    #emartit-close:hover { background: rgba(255,255,255,0.35); }
-
-    #emartit-messages {
-      flex: 1; overflow-y: auto; padding: 16px;
-      background: #f8fafc; display: flex; flex-direction: column; gap: 10px;
-    }
-    #emartit-messages::-webkit-scrollbar { width: 4px; }
-    #emartit-messages::-webkit-scrollbar-track { background: transparent; }
-    #emartit-messages::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-
-    .emartit-msg { display: flex; flex-direction: column; max-width: 82%; }
-    .emartit-msg.user { align-self: flex-end; align-items: flex-end; }
-    .emartit-msg.bot { align-self: flex-start; align-items: flex-start; }
-
-    .emartit-bubble-msg {
-      padding: 10px 14px; border-radius: 16px; font-size: 13px;
-      line-height: 1.5; word-break: break-word;
-    }
-    .emartit-msg.user .emartit-bubble-msg { color: white; border-radius: 16px 16px 4px 16px; }
-    .emartit-msg.bot .emartit-bubble-msg {
-      background: white; color: #1a1a2e;
-      border: 1px solid #e2e8f0; border-radius: 16px 16px 16px 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    }
-
-    .emartit-typing {
-      display: flex; align-items: center; gap: 4px; padding: 12px 14px;
-      background: white; border: 1px solid #e2e8f0; border-radius: 16px 16px 16px 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    }
-    .emartit-dot {
-      width: 7px; height: 7px; border-radius: 50%; background: #94a3b8;
-      animation: emartit-bounce 1.2s infinite;
-    }
-    .emartit-dot:nth-child(2) { animation-delay: 0.2s; }
-    .emartit-dot:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes emartit-bounce {
-      0%, 60%, 100% { transform: translateY(0); }
-      30% { transform: translateY(-6px); }
-    }
-
-    #emartit-input-row {
-      display: flex; gap: 8px; padding: 12px 14px;
-      border-top: 1px solid #e2e8f0; background: white; flex-shrink: 0;
-    }
-    #emartit-input {
-      flex: 1; padding: 10px 14px; border: 1.5px solid #e2e8f0;
-      border-radius: 24px; font-size: 13px; outline: none; resize: none;
-    }
-    #emartit-input:focus { border-color: #1a569a; }
-    #emartit-send {
-      width: 40px; height: 40px; border-radius: 50%; border: none;
-      color: white; font-size: 16px; cursor: pointer; flex-shrink: 0;
+  var CSS = `
+    #emt-btn {
+      position: fixed; bottom: 24px; right: 24px;
+      width: 58px; height: 58px; border-radius: 50%;
+      background: #2563eb; border: none; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      transition: transform 0.15s;
+      z-index: 9999; transition: transform 0.15s;
     }
-    #emartit-send:hover { transform: scale(1.1); }
-
-    #emartit-powered {
-      text-align: center; font-size: 10px; color: #94a3b8;
-      padding: 6px; background: white; flex-shrink: 0;
+    #emt-btn:hover { transform: scale(1.08); }
+    #emt-btn svg { width: 27px; height: 27px; fill: white; }
+    #emt-btn.glow { animation: emtGlow 2s ease-in-out infinite; }
+    @keyframes emtGlow {
+      0%,100% { box-shadow: 0 0 0 0px rgba(37,99,235,0.6), 0 0 0 0px rgba(37,99,235,0.3); }
+      50% { box-shadow: 0 0 0 10px rgba(37,99,235,0.2), 0 0 0 20px rgba(37,99,235,0); }
     }
-    #emartit-powered a { color: #94a3b8; text-decoration: none; }
-    #emartit-powered a:hover { color: #64748b; }
-
+    #emt-green-dot {
+      position: absolute; top: 2px; right: 2px;
+      width: 14px; height: 14px;
+      background: #22c55e; border-radius: 50%;
+      border: 2px solid white; z-index: 3;
+    }
+    #emt-green-dot.pulse { animation: emtPulse 1.4s infinite; }
+    #emt-live-badge {
+      position: fixed; bottom: 90px; right: 24px;
+      background: #1e293b; color: white;
+      font-size: 11px; font-weight: 600;
+      padding: 4px 10px; border-radius: 20px;
+      display: flex; align-items: center; gap: 5px;
+      z-index: 9999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      letter-spacing: 0.5px;
+    }
+    #emt-live-badge-dot {
+      width: 7px; height: 7px;
+      background: #22c55e; border-radius: 50%;
+    }
+    #emt-live-badge-dot.pulse { animation: emtPulse 1.4s infinite; }
+    @keyframes emtPulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.7); }
+    }
+    #emt-win {
+      position: fixed; bottom: 96px; right: 24px;
+      width: 340px; max-height: 500px; border-radius: 16px;
+      background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+      border: 1.5px solid #d1d5db;
+      display: flex; flex-direction: column; overflow: hidden;
+      z-index: 9998; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    #emt-win.emt-hide { opacity: 0; pointer-events: none; transform: translateY(10px); }
+    #emt-head {
+      padding: 14px 16px;
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    }
+    #emt-av {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 600; color: white; flex-shrink: 0;
+    }
+    #emt-head-txt { flex: 1; }
+    #emt-head-name { color: white; font-size: 14px; font-weight: 600; }
+    #emt-head-status {
+      font-size: 11px; margin-top: 3px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    #emt-status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #22c55e; flex-shrink: 0;
+      animation: emtPulse 1.4s infinite;
+    }
+    #emt-status-text { color: rgba(255,255,255,0.85); }
+    #emt-x {
+      background: none; border: none; color: rgba(255,255,255,0.75);
+      font-size: 20px; cursor: pointer; line-height: 1; padding: 2px 4px;
+    }
+    #emt-x:hover { color: white; }
+    #emt-msgs {
+      flex: 1; padding: 14px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 8px;
+      background: #f5f7fb; max-height: 320px;
+    }
+    #emt-msgs::-webkit-scrollbar { width: 4px; }
+    #emt-msgs::-webkit-scrollbar-track { background: transparent; }
+    #emt-msgs::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .emt-wrap { display: flex; flex-direction: column; gap: 3px; }
+    .emt-wrap.u { align-items: flex-end; }
+    .emt-wrap.b { align-items: flex-start; }
+    .emt-msg {
+      max-width: 82%; padding: 9px 13px;
+      font-size: 13.5px; line-height: 1.45; word-wrap: break-word;
+    }
+    .emt-bot {
+      background: #fff; border: 1px solid #e5e7eb;
+      border-radius: 4px 14px 14px 14px; color: #111827;
+    }
+    .emt-usr {
+      color: white;
+      border-radius: 14px 4px 14px 14px;
+    }
+    .emt-ts { font-size: 10.5px; color: #9ca3af; padding: 0 4px; }
+    .emt-typing {
+      display: flex; align-items: center; gap: 4px;
+      padding: 10px 14px; background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px 14px 14px 14px; width: fit-content;
+    }
+    .emt-typing span {
+      width: 7px; height: 7px; background: #9ca3af;
+      border-radius: 50%; display: inline-block;
+      animation: emtBounce 1.2s infinite;
+    }
+    .emt-typing span:nth-child(2) { animation-delay: 0.2s; }
+    .emt-typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes emtBounce {
+      0%,60%,100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-5px); opacity: 1; }
+    }
+    #emt-inp-row {
+      padding: 10px 12px; display: flex; gap: 8px;
+      align-items: center; border-top: 1px solid #e5e7eb;
+      background: #fff; flex-shrink: 0;
+    }
+    #emt-inp {
+      flex: 1; border: 1px solid #d1d5db; border-radius: 22px;
+      padding: 8px 14px; font-size: 13.5px; outline: none;
+      background: #f9fafb; color: #111827;
+    }
+    #emt-inp:focus { border-color: #2563eb; background: #fff; }
+    #emt-inp:disabled { opacity: 0.6; }
+    #emt-send {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: #2563eb; border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; transition: background 0.15s;
+    }
+    #emt-send:hover { filter: brightness(1.1); }
+    #emt-send:disabled { opacity: 0.5; cursor: not-allowed; }
+    #emt-send svg { width: 17px; height: 17px; fill: white; }
+    #emt-foot {
+      text-align: center; font-size: 10.5px; color: #9ca3af;
+      padding: 5px 0 7px; background: #fff;
+    }
     @media (max-width: 480px) {
-      #emartit-window { width: calc(100vw - 20px); height: 70vh; bottom: 90px; }
+      #emt-win { width: calc(100vw - 20px); right: 10px; bottom: 88px; }
+      #emt-btn { right: 16px; bottom: 16px; }
+      #emt-live-badge { right: 16px; bottom: 86px; }
     }
   `;
+
+  var style = document.createElement('style');
+  style.textContent = CSS;
   document.head.appendChild(style);
 
-  // ── HTML ────────────────────────────────────────────────
-  const widget = document.createElement('div');
-  widget.id = 'emartit-widget';
-  widget.innerHTML = `
-    <div id="emartit-bubble">🤖</div>
-    <div id="emartit-window">
-      <div id="emartit-header">
-        <span id="emartit-header-avatar">🤖</span>
-        <div>
-          <div id="emartit-header-name">Assistant</div>
-          <div id="emartit-header-status">● Online — replies instantly</div>
+  var HTML = `
+    <div id="emt-live-badge">
+      <div id="emt-live-badge-dot"></div>
+      Online
+    </div>
+    <button id="emt-btn" aria-label="Open chat">
+      <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+      <div id="emt-green-dot"></div>
+    </button>
+    <div id="emt-win" class="emt-hide">
+      <div id="emt-head">
+        <div id="emt-av">M</div>
+        <div id="emt-head-txt">
+          <div id="emt-head-name">eMart IT Assistant</div>
+          <div id="emt-head-status">
+            <div id="emt-status-dot"></div>
+            <span id="emt-status-text">Online &mdash; replies instantly</span>
+          </div>
         </div>
-        <button id="emartit-close">✕</button>
+        <button id="emt-x" aria-label="Close">&#10005;</button>
       </div>
-      <div id="emartit-messages"></div>
-      <div id="emartit-input-row">
-        <input type="text" id="emartit-input" placeholder="Type a message...">
-        <button id="emartit-send">➤</button>
+      <div id="emt-msgs"></div>
+      <div id="emt-inp-row">
+        <input id="emt-inp" type="text" placeholder="Type a message…" />
+        <button id="emt-send" aria-label="Send">
+          <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+        </button>
       </div>
-      <div id="emartit-powered">Powered by <a href="https://ematity.com" target="_blank">eMart IT</a></div>
+      <div id="emt-foot">Powered by <a href="https://ematity.com" target="_blank" style="color:#9ca3af">eMart IT</a></div>
     </div>
   `;
-  document.body.appendChild(widget);
 
-  // ── ELEMENTS ─────────────────────────────────────────────
-  const bubble = document.getElementById('emartit-bubble');
-  const window_ = document.getElementById('emartit-window');
-  const header = document.getElementById('emartit-header');
-  const headerAvatar = document.getElementById('emartit-header-avatar');
-  const headerName = document.getElementById('emartit-header-name');
-  const closeBtn = document.getElementById('emartit-close');
-  const messagesEl = document.getElementById('emartit-messages');
-  const input = document.getElementById('emartit-input');
-  const sendBtn = document.getElementById('emartit-send');
+  var container = document.createElement('div');
+  container.innerHTML = HTML;
+  document.body.appendChild(container);
 
-  // ── APPLY SETTINGS ───────────────────────────────────────
+  function getTime() {
+    var now = new Date();
+    var h = now.getHours(); var m = now.getMinutes();
+    var ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return h + ':' + (m < 10 ? '0' + m : m) + ' ' + ap;
+  }
+
   function applySettings() {
-    const avatarEmoji = AVATARS[settings.avatar] || '🤖';
-    bubble.textContent = avatarEmoji;
-    bubble.style.background = settings.bubbleColor;
-    header.style.background = settings.headerColor;
-    headerAvatar.textContent = avatarEmoji;
-    headerName.textContent = settings.botName;
-    sendBtn.style.background = settings.bubbleColor;
-    if (settings.position === 'left') {
-      bubble.style.left = '24px';
-      bubble.style.right = 'auto';
-      window_.style.left = '24px';
-      window_.style.right = 'auto';
+    // Header color
+    document.getElementById('emt-head').style.background = settings.headerColor;
+    // Bubble button color
+    document.getElementById('emt-btn').style.background = settings.bubbleColor;
+    // Send button color
+    document.getElementById('emt-send').style.background = settings.bubbleColor;
+    // Glow color based on brand color
+    var hex = settings.bubbleColor;
+    var r = parseInt(hex.slice(1,3),16);
+    var g = parseInt(hex.slice(3,5),16);
+    var b = parseInt(hex.slice(5,7),16);
+    var glowCSS = `#emt-btn.glow { animation: emtGlowBrand 2s ease-in-out infinite; }
+    @keyframes emtGlowBrand {
+      0%,100% { box-shadow: 0 0 0 0px rgba(${r},${g},${b},0.6), 0 0 0 0px rgba(${r},${g},${b},0.3); }
+      50% { box-shadow: 0 0 0 10px rgba(${r},${g},${b},0.2), 0 0 0 20px rgba(${r},${g},${b},0); }
+    }`;
+    var gs = document.createElement('style');
+    gs.textContent = glowCSS;
+    document.head.appendChild(gs);
+    // Bot name
+    document.getElementById('emt-head-name').textContent = settings.botName;
+    // Avatar — emoji or letter
+    var avatarEl = document.getElementById('emt-av');
+    if (settings.avatar && AVATARS[settings.avatar]) {
+      avatarEl.textContent = AVATARS[settings.avatar];
+      avatarEl.style.fontSize = '20px';
     } else {
-      bubble.style.right = '24px';
-      bubble.style.left = 'auto';
-      window_.style.right = '24px';
-      window_.style.left = 'auto';
+      avatarEl.textContent = settings.botName.charAt(0).toUpperCase();
+      avatarEl.style.fontSize = '15px';
     }
+    // Position
+    var btn = document.getElementById('emt-btn');
+    var win = document.getElementById('emt-win');
+    var badge = document.getElementById('emt-live-badge');
+    if (settings.position === 'left') {
+      btn.style.right = 'auto'; btn.style.left = '24px';
+      win.style.right = 'auto'; win.style.left = '24px';
+      badge.style.right = 'auto'; badge.style.left = '24px';
+    } else {
+      btn.style.left = 'auto'; btn.style.right = '24px';
+      win.style.left = 'auto'; win.style.right = '24px';
+      badge.style.left = 'auto'; badge.style.right = '24px';
+    }
+    // User message bubble color
+    var userStyle = document.createElement('style');
+    userStyle.textContent = `.emt-usr { background: ${settings.bubbleColor}; }`;
+    document.head.appendChild(userStyle);
+    // Input focus color
+    var inputStyle = document.createElement('style');
+    inputStyle.textContent = `#emt-inp:focus { border-color: ${settings.bubbleColor}; }`;
+    document.head.appendChild(inputStyle);
   }
 
-  // ── LOAD CLIENT SETTINGS ─────────────────────────────────
-  async function loadClientSettings() {
-    try {
-      const res = await fetch(API + '/clients/' + clientId + '/settings');
-      const data = await res.json();
-      const s = data.settings || {};
-      const c = data.client || {};
-
-      settings.botName = s.bot_name || 'Assistant';
-      settings.welcomeMessage = s.welcome_message || 'Hi! How can I help you today? 😊';
-      settings.headerColor = s.header_color || s.bot_color || '#1a569a';
-      settings.bubbleColor = s.bubble_color || s.bot_color || '#1a569a';
-      settings.avatar = s.bot_avatar || 'robot';
-      settings.position = s.chat_position || 'right';
-
-      applySettings();
-      addMessage('bot', settings.welcomeMessage);
-    } catch(e) {
-      console.log('eMart IT: Could not load settings', e);
-      applySettings();
-      addMessage('bot', settings.welcomeMessage);
-    }
+  function addBotMessage(text) {
+    var msgs = document.getElementById('emt-msgs');
+    var bw = document.createElement('div');
+    bw.className = 'emt-wrap b';
+    bw.innerHTML = '<div class="emt-msg emt-bot">' + text + '</div><div class="emt-ts">' + getTime() + '</div>';
+    msgs.appendChild(bw);
+    msgs.scrollTop = msgs.scrollHeight;
   }
 
-  // ── MESSAGES ─────────────────────────────────────────────
-  function addMessage(role, text) {
-    const msgDiv = document.createElement('div');
-    msgDiv.className = 'emartit-msg ' + role;
-    const bubbleDiv = document.createElement('div');
-    bubbleDiv.className = 'emartit-bubble-msg';
-    if (role === 'user') bubbleDiv.style.background = settings.bubbleColor;
-    bubbleDiv.textContent = text;
-    msgDiv.appendChild(bubbleDiv);
-    messagesEl.appendChild(msgDiv);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-    return msgDiv;
+  function addUserMessage(text) {
+    var msgs = document.getElementById('emt-msgs');
+    var uw = document.createElement('div');
+    uw.className = 'emt-wrap u';
+    uw.innerHTML = '<div class="emt-msg emt-usr">' + text + '</div><div class="emt-ts">' + getTime() + '</div>';
+    msgs.appendChild(uw);
+    msgs.scrollTop = msgs.scrollHeight;
   }
 
   function showTyping() {
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'emartit-msg bot';
-    typingDiv.id = 'emartit-typing';
-    typingDiv.innerHTML = `<div class="emartit-typing"><div class="emartit-dot"></div><div class="emartit-dot"></div><div class="emartit-dot"></div></div>`;
-    messagesEl.appendChild(typingDiv);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    var msgs = document.getElementById('emt-msgs');
+    var tw = document.createElement('div');
+    tw.className = 'emt-wrap b'; tw.id = 'emt-typing';
+    tw.innerHTML = '<div class="emt-typing"><span></span><span></span><span></span></div>';
+    msgs.appendChild(tw);
+    msgs.scrollTop = msgs.scrollHeight;
   }
 
   function hideTyping() {
-    const t = document.getElementById('emartit-typing');
+    var t = document.getElementById('emt-typing');
     if (t) t.remove();
   }
 
-  // ── SEND MESSAGE ─────────────────────────────────────────
-  async function sendMessage() {
-    const text = input.value.trim();
-    if (!text || isTyping) return;
-    input.value = '';
-    isTyping = true;
-    sendBtn.disabled = true;
-
-    addMessage('user', text);
-    conversationHistory.push({ role: 'user', content: text });
-    showTyping();
-
+  async function loadClientSettings() {
     try {
-      const res = await fetch(API + '/chat', {
+      var res = await fetch(API + '/clients/' + clientId + '/settings');
+      var data = await res.json();
+      var s = data.settings || {};
+      if (s.bot_name) settings.botName = s.bot_name;
+      if (s.welcome_message) settings.welcomeMessage = s.welcome_message;
+      if (s.header_color) settings.headerColor = s.header_color;
+      if (s.bubble_color) settings.bubbleColor = s.bubble_color;
+      else if (s.bot_color) { settings.headerColor = s.bot_color; settings.bubbleColor = s.bot_color; }
+      if (s.bot_avatar) settings.avatar = s.bot_avatar;
+      if (s.chat_position) settings.position = s.chat_position;
+      applySettings();
+    } catch(e) {
+      console.log('eMart IT: using default settings');
+    }
+    // Show welcome message after settings load
+    addBotMessage(settings.welcomeMessage);
+  }
+
+  async function send() {
+    var inp = document.getElementById('emt-inp');
+    var sendBtn = document.getElementById('emt-send');
+    var text = inp.value.trim();
+    if (!text || isTyping) return;
+    isTyping = true;
+    inp.value = ''; inp.disabled = true; sendBtn.disabled = true;
+    addUserMessage(text);
+    conversationHistory.push({role: 'user', content: text});
+    showTyping();
+    try {
+      var res = await fetch(API + '/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           client_id: clientId,
           message: text,
           conversation_history: conversationHistory.slice(-10)
         })
       });
-      const data = await res.json();
+      var data = await res.json();
       hideTyping();
-      const reply = data.reply || 'Sorry, something went wrong.';
-      addMessage('bot', reply);
-      conversationHistory.push({ role: 'assistant', content: reply });
+      var reply = data.reply || 'Sorry, something went wrong.';
+      addBotMessage(reply);
+      conversationHistory.push({role: 'assistant', content: reply});
     } catch(e) {
       hideTyping();
-      addMessage('bot', 'Sorry, I am having trouble connecting. Please try again.');
+      addBotMessage('Sorry, I am having trouble connecting. Please try again.');
     }
-
     isTyping = false;
-    sendBtn.disabled = false;
-    input.focus();
+    inp.disabled = false; sendBtn.disabled = false; inp.focus();
   }
 
-  // ── TOGGLE ───────────────────────────────────────────────
-  function toggleWidget() {
+  function startAnimation() {
+    document.getElementById('emt-btn').classList.add('glow');
+    document.getElementById('emt-green-dot').classList.add('pulse');
+    document.getElementById('emt-live-badge-dot').classList.add('pulse');
+  }
+
+  function stopAnimation() {
+    document.getElementById('emt-btn').classList.remove('glow');
+  }
+
+  function toggle() {
     isOpen = !isOpen;
+    document.getElementById('emt-win').classList.toggle('emt-hide', !isOpen);
+    document.getElementById('emt-live-badge').style.display = isOpen ? 'none' : 'flex';
     if (isOpen) {
-      window_.classList.add('open');
-      bubble.textContent = '✕';
-      bubble.style.fontSize = '20px';
-      input.focus();
+      stopAnimation();
+      document.getElementById('emt-inp').focus();
     } else {
-      window_.classList.remove('open');
-      bubble.textContent = AVATARS[settings.avatar] || '🤖';
-      bubble.style.fontSize = '28px';
+      startAnimation();
     }
   }
 
-  // ── EVENTS ───────────────────────────────────────────────
-  bubble.addEventListener('click', toggleWidget);
-  closeBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    isOpen = true;
-    toggleWidget();
-  });
-  sendBtn.addEventListener('click', sendMessage);
-  input.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
+  document.getElementById('emt-btn').onclick = toggle;
+  document.getElementById('emt-x').onclick = toggle;
+  document.getElementById('emt-send').onclick = send;
+  document.getElementById('emt-inp').onkeydown = function(e) { if (e.key === 'Enter') send(); };
 
-  // ── INIT ─────────────────────────────────────────────────
+  // Init
   applySettings();
+  startAnimation();
   loadClientSettings();
 
 })();
