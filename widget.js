@@ -548,7 +548,7 @@
         visitor_name: name,
         visitor_email: email,
         visitor_phone: phone,
-        message: 'Offline message — business was closed'
+        message: document.getElementById('emt-offline-msg')?.value || 'Offline message — business was closed'
       })
     }).catch(function(e) { console.log('Offline lead error:', e); });
 
