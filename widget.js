@@ -307,12 +307,15 @@
     document.getElementById('emt-send').style.background = settings.bubbleColor;
     document.getElementById('emt-head-name').textContent = settings.botName;
     var avatarEl = document.getElementById('emt-av');
-    if (settings.avatar && AVATARS[settings.avatar]) {
-      avatarEl.textContent = AVATARS[settings.avatar];
-      avatarEl.style.fontSize = '20px';
-    } else {
-      avatarEl.textContent = settings.botName.charAt(0).toUpperCase();
-      avatarEl.style.fontSize = '15px';
+    if (settings.avatarUrl) {
+  avatarEl.innerHTML = '<img src="' + settings.avatarUrl + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
+} else if (settings.avatar && AVATARS[settings.avatar]) {
+  avatarEl.textContent = AVATARS[settings.avatar];
+  avatarEl.style.fontSize = '20px';
+} else {
+  avatarEl.textContent = settings.botName.charAt(0).toUpperCase();
+  avatarEl.style.fontSize = '15px';
+}
     }
     var btn = document.getElementById('emt-btn');
     var win = document.getElementById('emt-win');
@@ -481,6 +484,7 @@
       if (s.bubble_color) settings.bubbleColor = s.bubble_color;
       else if (s.bot_color) { settings.headerColor = s.bot_color; settings.bubbleColor = s.bot_color; }
       if (s.bot_avatar) settings.avatar = s.bot_avatar;
+      if (s.bot_avatar_url) settings.avatarUrl = s.bot_avatar_url;
       if (s.chat_position) settings.position = s.chat_position;
       settings.leadCaptureEnabled = s.lead_capture_enabled || false;
       settings.leadCaptureName = s.lead_capture_name !== false;
