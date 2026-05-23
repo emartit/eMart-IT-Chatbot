@@ -525,10 +525,11 @@
     formEl.style.display = 'block';
     inpRow.style.display = 'none';
     formEl.innerHTML = '<div class="emt-lead-title">📩 Leave your details and we\'ll get back to you:</div>' +
-      '<input class="emt-lead-input" id="emt-offline-name" type="text" placeholder="Your Name">' +
-      '<input class="emt-lead-input" id="emt-offline-phone" type="tel" placeholder="Phone Number">' +
-      '<input class="emt-lead-input" id="emt-offline-email" type="email" placeholder="Email Address (optional)">' +
-      '<button class="emt-lead-submit" onclick="submitOfflineLead()">Send Message →</button>';
+     '<input class="emt-lead-input" id="emt-offline-name" type="text" placeholder="Your Name">' +
+'<input class="emt-lead-input" id="emt-offline-phone" type="tel" placeholder="Phone Number">' +
+'<input class="emt-lead-input" id="emt-offline-email" type="email" placeholder="Email Address (optional)">' +
+'<textarea class="emt-lead-input" id="emt-offline-msg" placeholder="Your message..." rows="3" style="resize:none;font-family:inherit"></textarea>' +
+'<button class="emt-lead-submit" onclick="submitOfflineLead()">Send Message →</button>';
   }
 
   window.submitOfflineLead = function() {
