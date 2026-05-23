@@ -47,7 +47,6 @@
     heart: '❤️', lightning: '⚡', diamond: '💎', fire: '🔥', crown: '👑'
   };
 
-  // ── CHECK IF BUSINESS IS OPEN ─────────────────────────────
   function isBusinessOpen() {
     if (!settings.offlineModeEnabled || !settings.businessHours) return true;
     try {
@@ -170,9 +169,7 @@
       background: #fff; border: 1px solid #e5e7eb;
       border-radius: 4px 14px 14px 14px; color: #111827;
     }
-    .emt-usr {
-      color: white; border-radius: 14px 4px 14px 14px;
-    }
+    .emt-usr { color: white; border-radius: 14px 4px 14px 14px; }
     .emt-ts { font-size: 10.5px; color: #9ca3af; padding: 0 4px; }
     .emt-typing {
       display: flex; align-items: center; gap: 4px;
@@ -191,8 +188,6 @@
       0%,60%,100% { transform: translateY(0); opacity: 0.4; }
       30% { transform: translateY(-5px); opacity: 1; }
     }
-
-    /* QUICK REPLIES */
     #emt-quick-replies {
       padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 6px;
       background: #f5f7fb; border-top: 1px solid #e5e7eb; flex-shrink: 0;
@@ -200,11 +195,10 @@
     .emt-qr-btn {
       padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
       border: 1.5px solid; cursor: pointer; background: white;
-      transition: all 0.15s; white-space: nowrap;
+      transition: all 0.15s; white-space: nowrap; text-decoration: none;
+      display: inline-block;
     }
     .emt-qr-btn:hover { color: white; }
-
-    /* LEAD FORM */
     #emt-lead-form {
       padding: 16px; background: white; flex-shrink: 0;
       border-top: 1px solid #e5e7eb;
@@ -224,7 +218,6 @@
     .emt-lead-title { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 10px; }
     .emt-lead-skip { text-align: center; margin-top: 8px; font-size: 11px; color: #9ca3af; cursor: pointer; }
     .emt-lead-skip:hover { color: #64748b; }
-
     #emt-inp-row {
       padding: 10px 12px; display: flex; gap: 8px;
       align-items: center; border-top: 1px solid #e5e7eb;
@@ -292,7 +285,7 @@
           <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
         </button>
       </div>
-     <div id="emt-foot">Powered by <a href="https://www.emartit.com" target="_blank" style="color:#9ca3af">eMart IT</a></div>
+      <div id="emt-foot">Powered by <a href="https://www.emartit.com" target="_blank" style="color:#9ca3af">eMart IT</a></div>
     </div>
   `;
 
@@ -334,10 +327,9 @@
       badge.style.left = 'auto'; badge.style.right = '24px';
     }
     var userStyle = document.createElement('style');
-    userStyle.textContent = `.emt-usr { background: ${settings.bubbleColor}; } .emt-qr-btn { border-color: ${settings.bubbleColor}; color: ${settings.bubbleColor}; } .emt-qr-btn:hover { background: ${settings.bubbleColor}; } .emt-lead-submit { background: ${settings.bubbleColor}; } #emt-inp:focus { border-color: ${settings.bubbleColor}; }`;
+    userStyle.textContent = `.emt-usr { background: ${settings.bubbleColor}; } .emt-qr-btn { border-color: ${settings.bubbleColor}; color: ${settings.bubbleColor}; } .emt-qr-btn:hover { background: ${settings.bubbleColor}; color: white; } .emt-lead-submit { background: ${settings.bubbleColor}; } #emt-inp:focus { border-color: ${settings.bubbleColor}; }`;
     document.head.appendChild(userStyle);
 
-    // Apply online/offline status
     var open = isBusinessOpen();
     var statusDot = document.getElementById('emt-status-dot');
     var statusText = document.getElementById('emt-status-text');
@@ -364,12 +356,25 @@
     }
   }
 
+  // ── SHOW QUICK REPLIES (supports text only OR text+link) ──
   function showQuickReplies() {
     if (!settings.quickReplies || settings.quickReplies.length === 0) return;
+    var validReplies = settings.quickReplies.filter(function(qr) {
+      var text = typeof qr === 'object' ? qr.text : qr;
+      return text && text.trim();
+    });
+    if (validReplies.length === 0) return;
     var qrEl = document.getElementById('emt-quick-replies');
     qrEl.style.display = 'flex';
-    qrEl.innerHTML = settings.quickReplies.map(function(qr) {
-      return '<button class="emt-qr-btn" onclick="(function(){document.getElementById(\'emt-quick-replies\').style.display=\'none\';emtSendQuickReply(\'' + qr.replace(/'/g, "\\'") + '\')})()">' + qr + '</button>';
+    qrEl.innerHTML = validReplies.map(function(qr) {
+      var text = typeof qr === 'object' ? qr.text : qr;
+      var link = typeof qr === 'object' ? (qr.link || '') : '';
+      if (link && link.trim()) {
+        // Button with link — opens URL in new tab
+        return '<a href="' + link + '" target="_blank" class="emt-qr-btn">🔗 ' + text + '</a>';
+      }
+      // Button without link — sends as chat message
+      return '<button class="emt-qr-btn" onclick="(function(){document.getElementById(\'emt-quick-replies\').style.display=\'none\';emtSendQuickReply(\'' + text.replace(/'/g, "\\'") + '\')})()">' + text + '</button>';
     }).join('');
   }
 
@@ -384,12 +389,10 @@
     if (settings.leadCaptureEmail) fields.push({key:'email', label:'Email Address', type:'email', placeholder:'e.g. john@email.com'});
     if (settings.leadCapturePhone) fields.push({key:'phone', label:'Phone Number', type:'tel', placeholder:'e.g. +1 234 567 8900'});
     if (fields.length === 0) { leadCaptured = true; return; }
-
     var formEl = document.getElementById('emt-lead-form');
     var inpRow = document.getElementById('emt-inp-row');
     formEl.style.display = 'block';
     inpRow.style.display = 'none';
-
     formEl.innerHTML = '<div class="emt-lead-title">👋 Before we chat, please share your details:</div>' +
       fields.map(function(f) {
         return '<input class="emt-lead-input" id="emt-lead-' + f.key + '" type="' + f.type + '" placeholder="' + f.placeholder + '">';
@@ -403,12 +406,10 @@
     if (settings.leadCaptureName) leadData.name = document.getElementById('emt-lead-name')?.value || '';
     if (settings.leadCaptureEmail) leadData.email = document.getElementById('emt-lead-email')?.value || '';
     if (settings.leadCapturePhone) leadData.phone = document.getElementById('emt-lead-phone')?.value || '';
-
     if (settings.leadCaptureName && !leadData.name.trim()) {
       document.getElementById('emt-lead-name').style.borderColor = '#dc2626';
       return;
     }
-
     fetch(API + '/leads/capture', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -420,7 +421,6 @@
         message: 'New visitor from chatbot'
       })
     }).catch(function(e) { console.log('Lead capture error:', e); });
-
     leadCaptured = true;
     document.getElementById('emt-lead-form').style.display = 'none';
     document.getElementById('emt-inp-row').style.display = 'flex';
@@ -475,7 +475,6 @@
       var res = await fetch(API + '/clients/' + clientId + '/settings');
       var data = await res.json();
       var s = data.settings || {};
-
       if (s.bot_name) settings.botName = s.bot_name;
       if (s.welcome_message) settings.welcomeMessage = s.welcome_message;
       if (s.header_color) settings.headerColor = s.header_color;
@@ -491,30 +490,28 @@
       settings.offlineMessage = s.offline_message || 'We are currently closed. Please leave your details and we will get back to you!';
       settings.businessHours = s.business_hours || null;
       settings.timezone = s.timezone || 'Asia/Dhaka';
-      settings.quickReplies = s.quick_replies || [];
-
+      settings.quickReplies = (s.quick_replies || []).map(function(qr) {
+        return typeof qr === 'string' ? {text: qr, link: ''} : {text: qr.text || '', link: qr.link || ''};
+      });
       applySettings();
     } catch(e) {
       console.log('eMart IT: using default settings');
       applySettings();
     }
 
-    // Show welcome or offline message
     var open = isBusinessOpen();
     if (!open && settings.offlineModeEnabled) {
       addBotMessage(settings.offlineMessage);
-      // Show offline lead form to collect contact
-      setTimeout(function() {
-        showOfflineLeadForm();
-      }, 800);
+      setTimeout(function() { showOfflineLeadForm(); }, 800);
     } else {
       addBotMessage(settings.welcomeMessage);
+      // Show quick replies first
+      if (settings.quickReplies && settings.quickReplies.length > 0) {
+        showQuickReplies();
+      }
+      // Then show lead form after short delay
       if (settings.leadCaptureEnabled) {
-        showLeadForm();
-      } else {
-        if (settings.quickReplies && settings.quickReplies.length > 0) {
-          showQuickReplies();
-        }
+        setTimeout(function() { showLeadForm(); }, 400);
       }
     }
   }
@@ -525,11 +522,11 @@
     formEl.style.display = 'block';
     inpRow.style.display = 'none';
     formEl.innerHTML = '<div class="emt-lead-title">📩 Leave your details and we\'ll get back to you:</div>' +
-     '<input class="emt-lead-input" id="emt-offline-name" type="text" placeholder="Your Name">' +
-'<input class="emt-lead-input" id="emt-offline-phone" type="tel" placeholder="Phone Number">' +
-'<input class="emt-lead-input" id="emt-offline-email" type="email" placeholder="Email Address (optional)">' +
-'<textarea class="emt-lead-input" id="emt-offline-msg" placeholder="Your message..." rows="3" style="resize:none;font-family:inherit"></textarea>' +
-'<button class="emt-lead-submit" onclick="submitOfflineLead()">Send Message →</button>';
+      '<input class="emt-lead-input" id="emt-offline-name" type="text" placeholder="Your Name">' +
+      '<input class="emt-lead-input" id="emt-offline-phone" type="tel" placeholder="Phone Number">' +
+      '<input class="emt-lead-input" id="emt-offline-email" type="email" placeholder="Email Address (optional)">' +
+      '<textarea class="emt-lead-input" id="emt-offline-msg" placeholder="Your message..." rows="3" style="resize:none;font-family:inherit"></textarea>' +
+      '<button class="emt-lead-submit" onclick="submitOfflineLead()">Send Message →</button>';
   }
 
   window.submitOfflineLead = function() {
@@ -551,7 +548,6 @@
         message: document.getElementById('emt-offline-msg')?.value || 'Offline message — business was closed'
       })
     }).catch(function(e) { console.log('Offline lead error:', e); });
-
     document.getElementById('emt-lead-form').innerHTML =
       '<div style="text-align:center;padding:16px 0"><div style="font-size:24px;margin-bottom:8px">✅</div><div style="font-size:14px;font-weight:600;color:#166534">Thanks ' + name + '!</div><div style="font-size:12px;color:#64748b;margin-top:4px">We\'ll get back to you as soon as we\'re open.</div></div>';
   };
@@ -561,7 +557,6 @@
     var sendBtn = document.getElementById('emt-send');
     var text = inp.value.trim();
     if (!text || isTyping) return;
-
     var open = isBusinessOpen();
     if (!open && settings.offlineModeEnabled) {
       addUserMessage(text);
@@ -569,7 +564,6 @@
       addBotMessage(settings.offlineMessage);
       return;
     }
-
     isTyping = true;
     inp.value = ''; inp.disabled = true; sendBtn.disabled = true;
     document.getElementById('emt-quick-replies').style.display = 'none';
