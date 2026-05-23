@@ -292,7 +292,7 @@
           <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
         </button>
       </div>
-      <div id="emt-foot">Powered by <a href="https://ematity.com" target="_blank" style="color:#9ca3af">eMart IT</a></div>
+     <div id="emt-foot">Powered by <a href="https://www.emartit.com" target="_blank" style="color:#9ca3af">eMart IT</a></div>
     </div>
   `;
 
