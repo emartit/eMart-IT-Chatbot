@@ -600,7 +600,7 @@ function startAnimation() {
     document.getElementById('emt-green-dot').classList.add('pulse');
     document.getElementById('emt-live-badge-dot').classList.add('pulse');
     setTimeout(function() {
-      document.getElementById('emt-btn').classList.remove('glow');
+      stopAnimation();
     }, 4000);
   }
 
