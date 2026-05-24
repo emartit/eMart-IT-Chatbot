@@ -648,8 +648,7 @@ function toggle() {
       stopAnimation();
       document.getElementById('emt-inp').focus();
     } else {
-      startAnimation();
-    }
+      }
   }
 
   document.getElementById('emt-btn').onclick = toggle;
