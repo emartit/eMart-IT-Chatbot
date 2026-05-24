@@ -30,6 +30,7 @@
     headerColor: '#2563eb',
     bubbleColor: '#2563eb',
     avatar: 'robot',
+    avatarUrl: '',
     position: 'right',
     leadCaptureEnabled: false,
     leadCaptureName: true,
@@ -131,6 +132,7 @@
       background: rgba(255,255,255,0.2);
       display: flex; align-items: center; justify-content: center;
       font-size: 18px; font-weight: 600; color: white; flex-shrink: 0;
+      overflow: hidden;
     }
     #emt-head-txt { flex: 1; }
     #emt-head-name { color: white; font-size: 14px; font-weight: 600; }
@@ -308,15 +310,15 @@
     document.getElementById('emt-head-name').textContent = settings.botName;
     var avatarEl = document.getElementById('emt-av');
     if (settings.avatarUrl) {
-  avatarEl.innerHTML = '<img src="' + settings.avatarUrl + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
-} else if (settings.avatar && AVATARS[settings.avatar]) {
-  avatarEl.textContent = AVATARS[settings.avatar];
-  avatarEl.style.fontSize = '20px';
-} else {
-  avatarEl.textContent = settings.botName.charAt(0).toUpperCase();
-  avatarEl.style.fontSize = '15px';
-}
-    
+      avatarEl.innerHTML = '<img src="' + settings.avatarUrl + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
+    } else if (settings.avatar && AVATARS[settings.avatar]) {
+      avatarEl.textContent = AVATARS[settings.avatar];
+      avatarEl.style.fontSize = '20px';
+    } else {
+      avatarEl.textContent = settings.botName.charAt(0).toUpperCase();
+      avatarEl.style.fontSize = '15px';
+    }
+
     var btn = document.getElementById('emt-btn');
     var win = document.getElementById('emt-win');
     var badge = document.getElementById('emt-live-badge');
@@ -329,6 +331,7 @@
       win.style.left = 'auto'; win.style.right = '24px';
       badge.style.left = 'auto'; badge.style.right = '24px';
     }
+
     var userStyle = document.createElement('style');
     userStyle.textContent = `.emt-usr { background: ${settings.bubbleColor}; } .emt-qr-btn { border-color: ${settings.bubbleColor}; color: ${settings.bubbleColor}; } .emt-qr-btn:hover { background: ${settings.bubbleColor}; color: white; } .emt-lead-submit { background: ${settings.bubbleColor}; } #emt-inp:focus { border-color: ${settings.bubbleColor}; }`;
     document.head.appendChild(userStyle);
@@ -359,7 +362,6 @@
     }
   }
 
-  // ── SHOW QUICK REPLIES (supports text only OR text+link) ──
   function showQuickReplies() {
     if (!settings.quickReplies || settings.quickReplies.length === 0) return;
     var validReplies = settings.quickReplies.filter(function(qr) {
@@ -373,10 +375,8 @@
       var text = typeof qr === 'object' ? qr.text : qr;
       var link = typeof qr === 'object' ? (qr.link || '') : '';
       if (link && link.trim()) {
-        // Button with link — opens URL in new tab
         return '<a href="' + link + '" target="_blank" class="emt-qr-btn">🔗 ' + text + '</a>';
       }
-      // Button without link — sends as chat message
       return '<button class="emt-qr-btn" onclick="(function(){document.getElementById(\'emt-quick-replies\').style.display=\'none\';emtSendQuickReply(\'' + text.replace(/'/g, "\\'") + '\')})()">' + text + '</button>';
     }).join('');
   }
@@ -509,11 +509,9 @@
       setTimeout(function() { showOfflineLeadForm(); }, 800);
     } else {
       addBotMessage(settings.welcomeMessage);
-      // Show quick replies first
       if (settings.quickReplies && settings.quickReplies.length > 0) {
         showQuickReplies();
       }
-      // Then show lead form after short delay
       if (settings.leadCaptureEnabled) {
         setTimeout(function() { showLeadForm(); }, 400);
       }
