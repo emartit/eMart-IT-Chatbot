@@ -595,10 +595,41 @@
     inp.disabled = false; sendBtn.disabled = false; inp.focus();
   }
 
-  function startAnimation() {
+function startAnimation() {
     document.getElementById('emt-btn').classList.add('glow');
     document.getElementById('emt-green-dot').classList.add('pulse');
     document.getElementById('emt-live-badge-dot').classList.add('pulse');
+    setTimeout(function() {
+      document.getElementById('emt-btn').classList.remove('glow');
+    }, 4000);
+  }
+
+  function showProactivePopup() {
+    var existing = document.getElementById('emt-proactive');
+    if (existing) return;
+    var popup = document.createElement('div');
+    popup.id = 'emt-proactive';
+    popup.style.cssText = 'position:fixed;bottom:92px;right:24px;background:#1e293b;color:white;padding:10px 16px;border-radius:12px;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);cursor:pointer;max-width:220px;line-height:1.4;';
+    popup.textContent = '👋 Hi! Need help? I\'m here!';
+    popup.onclick = function() { 
+      popup.remove(); 
+      toggle(); 
+    };
+    document.body.appendChild(popup);
+    try {
+      var audio = new AudioContext();
+      var o = audio.createOscillator();
+      var g = audio.createGain();
+      o.connect(g); g.connect(audio.destination);
+      o.frequency.value = 520;
+      g.gain.setValueAtTime(0.1, audio.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.4);
+      o.start(audio.currentTime);
+      o.stop(audio.currentTime + 0.4);
+    } catch(e) {}
+    setTimeout(function() { 
+      if (popup.parentNode) popup.remove(); 
+    }, 6000);
   }
 
   function stopAnimation() {
