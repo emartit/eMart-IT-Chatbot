@@ -632,8 +632,10 @@ function startAnimation() {
     }, 6000);
   }
 
-  function stopAnimation() {
+function stopAnimation() {
     document.getElementById('emt-btn').classList.remove('glow');
+    document.getElementById('emt-green-dot').classList.remove('pulse');
+    document.getElementById('emt-live-badge-dot').classList.remove('pulse');
   }
 
 function toggle() {
