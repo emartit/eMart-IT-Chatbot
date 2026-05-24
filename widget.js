@@ -622,8 +622,13 @@
   document.getElementById('emt-send').onclick = send;
   document.getElementById('emt-inp').onkeydown = function(e) { if (e.key === 'Enter') send(); };
 
-  applySettings();
-  startAnimation();
+applySettings();
   loadClientSettings();
+  setTimeout(function() {
+    if (!isOpen) {
+      startAnimation();
+      showProactivePopup();
+    }
+  }, 8000);
 
 })();
