@@ -316,7 +316,7 @@
   avatarEl.textContent = settings.botName.charAt(0).toUpperCase();
   avatarEl.style.fontSize = '15px';
 }
-    }
+    
     var btn = document.getElementById('emt-btn');
     var win = document.getElementById('emt-win');
     var badge = document.getElementById('emt-live-badge');
