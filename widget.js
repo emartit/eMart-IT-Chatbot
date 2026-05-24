@@ -636,7 +636,9 @@ function startAnimation() {
     document.getElementById('emt-btn').classList.remove('glow');
   }
 
-  function toggle() {
+function toggle() {
+    var proactive = document.getElementById('emt-proactive');
+    if (proactive) proactive.remove();
     isOpen = !isOpen;
     document.getElementById('emt-win').classList.toggle('emt-hide', !isOpen);
     document.getElementById('emt-live-badge').style.display = isOpen ? 'none' : 'flex';
