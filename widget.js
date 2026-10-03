@@ -654,7 +654,8 @@
       var data = await res.json();
       hideTyping();
       if (data.session_id) sessionId = data.session_id;
-      var reply = data.reply || (typeof data.detail === 'string' ? data.detail : 'Sorry, something went wrong.');
+      // Visitors only ever see the bot's reply or a friendly message, never technical errors
+      var reply = data.reply || 'Sorry, something went wrong. Please try again in a moment.';
       addBotMessage(reply);
       conversationHistory.push({role: 'assistant', content: reply});
     } catch(e) {
