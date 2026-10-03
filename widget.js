@@ -17,6 +17,13 @@
 
   var API = 'https://web-production-1c820.up.railway.app';
   var conversationHistory = [];
+  // One ID per chat, so the backend can group messages, leads and queries per conversation
+  var sessionId = (function() {
+    try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch(e) {}
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  })();
   var isOpen = false;
   var isTyping = false;
   var leadCaptured = false;
@@ -65,6 +72,39 @@
       var closeMinutes = parseInt(closeParts[0]) * 60 + parseInt(closeParts[1]);
       return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
     } catch(e) { return true; }
+  }
+
+
+  // ============ CHAT REPLY FORMATTING (safe: escapes everything first) ============
+  function fmtEsc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+  function fmtInline(s) {
+    let h = fmtEsc(s);
+    h = h.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    h = h.replace(/__(.+?)__/g, "<strong>$1</strong>");
+    h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    h = h.replace(/(^|[\s(])(https?:\/\/[^\s<]+[^\s<.,!?;:)])/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+    h = h.replace(/(^|[\s(])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g, '$1<a href="mailto:$2">$2</a>');
+    return h;
+  }
+  function fmtReply(text) {
+    const lines = String(text == null ? "" : text).replace(/\r/g, "").split("\n");
+    let html = "", para = [], list = null;
+    const flushPara = () => { if (para.length) { html += "<p>" + para.join("<br>") + "</p>"; para = []; } };
+    const flushList = () => { if (list) { html += "<" + list.type + ">" + list.items.map(i => "<li>" + i + "</li>").join("") + "</" + list.type + ">"; list = null; } };
+    for (const raw of lines) {
+      const line = raw.trim();
+      let m;
+      if (!line) { flushPara(); flushList(); continue; }
+      if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) { flushPara(); flushList(); continue; }
+      if ((m = line.match(/^#{1,6}\s+(.*)$/))) { flushPara(); flushList(); html += "<p><strong>" + fmtInline(m[1].replace(/\*\*/g, "")) + "</strong></p>"; continue; }
+      if ((m = line.match(/^[-•*✅📌]\s+(.*)$/))) { flushPara(); if (!list || list.type !== "ul") { flushList(); list = { type: "ul", items: [] }; } list.items.push(fmtInline(m[1])); continue; }
+      if ((m = line.match(/^\d+[.)]\s+(.*)$/))) { flushPara(); if (!list || list.type !== "ol") { flushList(); list = { type: "ol", items: [] }; } list.items.push(fmtInline(m[1])); continue; }
+      flushList(); para.push(fmtInline(line));
+    }
+    flushPara(); flushList();
+    return html || "<p></p>";
   }
 
   var CSS = `
@@ -155,7 +195,7 @@
     #emt-msgs {
       flex: 1; padding: 14px; overflow-y: auto;
       display: flex; flex-direction: column; gap: 8px;
-      background: #f5f7fb; max-height: 320px;
+      background: #f5f7fb; max-height: 340px; position: relative;
     }
     #emt-msgs::-webkit-scrollbar { width: 4px; }
     #emt-msgs::-webkit-scrollbar-track { background: transparent; }
@@ -171,7 +211,14 @@
       background: #fff; border: 1px solid #e5e7eb;
       border-radius: 4px 14px 14px 14px; color: #111827;
     }
-    .emt-usr { color: white; border-radius: 14px 4px 14px 14px; }
+    .emt-usr { color: white; border-radius: 14px 4px 14px 14px; white-space: pre-wrap; }
+    .emt-bot p { margin: 0 0 7px; }
+    .emt-bot p:last-child { margin-bottom: 0; }
+    .emt-bot ul, .emt-bot ol { margin: 3px 0 7px 18px; padding: 0; }
+    .emt-bot ul:last-child, .emt-bot ol:last-child { margin-bottom: 0; }
+    .emt-bot li { margin: 2px 0; }
+    .emt-bot strong { font-weight: 700; }
+    .emt-bot a { color: #2563eb; text-decoration: underline; word-break: break-word; }
     .emt-ts { font-size: 10.5px; color: #9ca3af; padding: 0 4px; }
     .emt-typing {
       display: flex; align-items: center; gap: 4px;
@@ -310,7 +357,7 @@
     document.getElementById('emt-head-name').textContent = settings.botName;
     var avatarEl = document.getElementById('emt-av');
     if (settings.avatarUrl) {
-      avatarEl.innerHTML = '<img src="' + settings.avatarUrl + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
+      avatarEl.innerHTML = '<img src="' + fmtEsc(settings.avatarUrl) + '" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
     } else if (settings.avatar && AVATARS[settings.avatar]) {
       avatarEl.textContent = AVATARS[settings.avatar];
       avatarEl.style.fontSize = '20px';
@@ -371,14 +418,23 @@
     if (validReplies.length === 0) return;
     var qrEl = document.getElementById('emt-quick-replies');
     qrEl.style.display = 'flex';
-    qrEl.innerHTML = validReplies.map(function(qr) {
+    qrEl.innerHTML = '';
+    validReplies.forEach(function(qr) {
       var text = typeof qr === 'object' ? qr.text : qr;
       var link = typeof qr === 'object' ? (qr.link || '') : '';
-      if (link && link.trim()) {
-        return '<a href="' + link + '" target="_blank" class="emt-qr-btn">🔗 ' + text + '</a>';
+      var el;
+      if (link && /^(https?:|mailto:|tel:)/i.test(link.trim())) {
+        el = document.createElement('a');
+        el.href = link.trim(); el.target = '_blank'; el.rel = 'noopener';
+        el.textContent = '🔗 ' + text;
+      } else {
+        el = document.createElement('button');
+        el.textContent = text;
+        el.onclick = function() { qrEl.style.display = 'none'; emtSendQuickReply(text); };
       }
-      return '<button class="emt-qr-btn" onclick="(function(){document.getElementById(\'emt-quick-replies\').style.display=\'none\';emtSendQuickReply(\'' + text.replace(/'/g, "\\'") + '\')})()">' + text + '</button>';
-    }).join('');
+      el.className = 'emt-qr-btn';
+      qrEl.appendChild(el);
+    });
   }
 
   window.emtSendQuickReply = function(text) {
@@ -421,7 +477,9 @@
         visitor_name: leadData.name || '',
         visitor_email: leadData.email || '',
         visitor_phone: leadData.phone || '',
-        message: 'New visitor from chatbot'
+        message: 'New visitor from chatbot',
+        session_id: sessionId,
+        source: 'form'
       })
     }).catch(function(e) { console.log('Lead capture error:', e); });
     leadCaptured = true;
@@ -445,16 +503,24 @@
     var msgs = document.getElementById('emt-msgs');
     var bw = document.createElement('div');
     bw.className = 'emt-wrap b';
-    bw.innerHTML = '<div class="emt-msg emt-bot">' + text + '</div><div class="emt-ts">' + getTime() + '</div>';
+    bw.innerHTML = '<div class="emt-msg emt-bot">' + fmtReply(text) + '</div><div class="emt-ts">' + getTime() + '</div>';
     msgs.appendChild(bw);
-    msgs.scrollTop = msgs.scrollHeight;
+    // Long reply: show it from its first line. Short reply: scroll to the bottom.
+    if (bw.offsetHeight > msgs.clientHeight - 20) msgs.scrollTop = bw.offsetTop - 10;
+    else msgs.scrollTop = msgs.scrollHeight;
   }
 
   function addUserMessage(text) {
     var msgs = document.getElementById('emt-msgs');
     var uw = document.createElement('div');
     uw.className = 'emt-wrap u';
-    uw.innerHTML = '<div class="emt-msg emt-usr">' + text + '</div><div class="emt-ts">' + getTime() + '</div>';
+    var bubble = document.createElement('div');
+    bubble.className = 'emt-msg emt-usr';
+    bubble.textContent = text;
+    var ts = document.createElement('div');
+    ts.className = 'emt-ts';
+    ts.textContent = getTime();
+    uw.appendChild(bubble); uw.appendChild(ts);
     msgs.appendChild(uw);
     msgs.scrollTop = msgs.scrollHeight;
   }
@@ -547,11 +613,13 @@
         visitor_name: name,
         visitor_email: email,
         visitor_phone: phone,
-        message: document.getElementById('emt-offline-msg')?.value || 'Offline message — business was closed'
+        message: document.getElementById('emt-offline-msg')?.value || 'Offline message — business was closed',
+        session_id: sessionId,
+        source: 'offline_form'
       })
     }).catch(function(e) { console.log('Offline lead error:', e); });
     document.getElementById('emt-lead-form').innerHTML =
-      '<div style="text-align:center;padding:16px 0"><div style="font-size:24px;margin-bottom:8px">✅</div><div style="font-size:14px;font-weight:600;color:#166534">Thanks ' + name + '!</div><div style="font-size:12px;color:#64748b;margin-top:4px">We\'ll get back to you as soon as we\'re open.</div></div>';
+      '<div style="text-align:center;padding:16px 0"><div style="font-size:24px;margin-bottom:8px">✅</div><div style="font-size:14px;font-weight:600;color:#166534">Thanks ' + fmtEsc(name) + '!</div><div style="font-size:12px;color:#64748b;margin-top:4px">We\'ll get back to you as soon as we\'re open.</div></div>';
   };
 
   async function send() {
@@ -579,12 +647,14 @@
         body: JSON.stringify({
           client_id: clientId,
           message: text,
-          conversation_history: conversationHistory.slice(-10)
+          conversation_history: conversationHistory.slice(-10),
+          session_id: sessionId
         })
       });
       var data = await res.json();
       hideTyping();
-      var reply = data.reply || 'Sorry, something went wrong.';
+      if (data.session_id) sessionId = data.session_id;
+      var reply = data.reply || (typeof data.detail === 'string' ? data.detail : 'Sorry, something went wrong.');
       addBotMessage(reply);
       conversationHistory.push({role: 'assistant', content: reply});
     } catch(e) {
