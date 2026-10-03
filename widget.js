@@ -253,13 +253,13 @@
       border-top: 1px solid #e5e7eb;
     }
     .emt-lead-input {
-      width: 100%; padding: 9px 14px; border: 1.5px solid #d1d5db;
+      width: 100%; box-sizing: border-box; padding: 9px 14px; border: 1.5px solid #d1d5db;
       border-radius: 8px; font-size: 13px; outline: none; margin-bottom: 8px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     .emt-lead-input:focus { border-color: #2563eb; }
     .emt-lead-submit {
-      width: 100%; padding: 10px; border: none; border-radius: 8px;
+      width: 100%; box-sizing: border-box; padding: 10px; border: none; border-radius: 8px;
       background: #2563eb; color: white; font-size: 13px; font-weight: 600;
       cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
