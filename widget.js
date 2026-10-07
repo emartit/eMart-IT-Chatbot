@@ -47,8 +47,21 @@
     offlineMessage: 'We are currently closed. Please leave your details and we will get back to you!',
     businessHours: null,
     timezone: 'Asia/Dhaka',
-    quickReplies: []
+    quickReplies: [],
+    voiceInputEnabled: true,
+    voiceLanguage: 'en-US',
+    readAloudEnabled: true,
+    idleRemindersEnabled: true,
+    idleMessage1: '',
+    idleMessage2: ''
   };
+
+  // Idle reminders: first after 5 minutes without a reply, second (goodbye) after 10 minutes
+  var IDLE_FIRST_MS = 5 * 60 * 1000;
+  var IDLE_SECOND_MS = 10 * 60 * 1000;
+  var DEFAULT_IDLE_1 = "Just checking in 😊 Do you have any other questions? I'm happy to help.";
+  var DEFAULT_IDLE_2 = "Thanks for chatting with us! Feel free to come back anytime: just type here and tell me how I can help.";
+  var DEFAULT_IDLE_CONTACT = "If you'd like our team to follow up, leave your name and email here.";
 
   var AVATARS = {
     robot: '🤖', woman: '👩', man: '👨', star: '⭐', chat: '💬',
@@ -288,6 +301,25 @@
     #emt-send:hover { filter: brightness(1.1); }
     #emt-send:disabled { opacity: 0.5; cursor: not-allowed; }
     #emt-send svg { width: 17px; height: 17px; fill: white; }
+    #emt-mic {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: #f1f5f9; border: 1px solid #d1d5db;
+      display: none; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; transition: background 0.15s;
+    }
+    #emt-mic svg { width: 17px; height: 17px; fill: #475569; }
+    #emt-mic:hover { background: #e2e8f0; }
+    #emt-mic.listening { background: #dc2626; border-color: #dc2626; animation: emtMicPulse 1.2s infinite; }
+    #emt-mic.listening svg { fill: white; }
+    @keyframes emtMicPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
+      50% { box-shadow: 0 0 0 7px rgba(220,38,38,0); }
+    }
+    .emt-speak {
+      background: none; border: none; padding: 0 0 0 6px; margin: 0;
+      font-size: 10.5px; color: #64748b; cursor: pointer; font-family: inherit;
+    }
+    .emt-speak:hover { color: #111827; text-decoration: underline; }
     #emt-foot {
       text-align: center; font-size: 10.5px; color: #9ca3af;
       padding: 5px 0 7px; background: #fff; flex-shrink: 0;
@@ -330,6 +362,9 @@
       <div id="emt-lead-form" style="display:none"></div>
       <div id="emt-inp-row">
         <input id="emt-inp" type="text" placeholder="Type a message…" />
+        <button id="emt-mic" aria-label="Speak your message" title="Speak your message">
+          <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+        </button>
         <button id="emt-send" aria-label="Send">
           <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
         </button>
@@ -483,6 +518,7 @@
       })
     }).catch(function(e) { console.log('Lead capture error:', e); });
     leadCaptured = true;
+    if (leadData.email || leadData.phone) contactShared = true;
     document.getElementById('emt-lead-form').style.display = 'none';
     document.getElementById('emt-inp-row').style.display = 'flex';
     var greeting = leadData.name ? 'Thanks ' + leadData.name + '! How can I help you today? 😊' : 'Thanks! How can I help you today? 😊';
@@ -504,6 +540,14 @@
     var bw = document.createElement('div');
     bw.className = 'emt-wrap b';
     bw.innerHTML = '<div class="emt-msg emt-bot">' + fmtReply(text) + '</div><div class="emt-ts">' + getTime() + '</div>';
+    if (settings.readAloudEnabled && window.speechSynthesis && window.SpeechSynthesisUtterance) {
+      var speakBtn = document.createElement('button');
+      speakBtn.className = 'emt-speak';
+      speakBtn.type = 'button';
+      speakBtn.textContent = '🔊 Listen';
+      speakBtn.onclick = function() { speakText(text, speakBtn); };
+      bw.querySelector('.emt-ts').appendChild(speakBtn);
+    }
     msgs.appendChild(bw);
     // Long reply: show it from its first line. Short reply: scroll to the bottom.
     if (bw.offsetHeight > msgs.clientHeight - 20) msgs.scrollTop = bw.offsetTop - 10;
@@ -560,6 +604,12 @@
       settings.offlineMessage = s.offline_message || 'We are currently closed. Please leave your details and we will get back to you!';
       settings.businessHours = s.business_hours || null;
       settings.timezone = s.timezone || 'Asia/Dhaka';
+      if (s.voice_input_enabled === false) settings.voiceInputEnabled = false;
+      if (s.voice_language) settings.voiceLanguage = s.voice_language;
+      if (s.read_aloud_enabled === false) settings.readAloudEnabled = false;
+      if (s.idle_reminders_enabled === false) settings.idleRemindersEnabled = false;
+      if (s.idle_message_1) settings.idleMessage1 = s.idle_message_1;
+      if (s.idle_message_2) settings.idleMessage2 = s.idle_message_2;
       settings.quickReplies = (s.quick_replies || []).map(function(qr) {
         return typeof qr === 'string' ? {text: qr, link: ''} : {text: qr.text || '', link: qr.link || ''};
       });
@@ -568,6 +618,7 @@
       console.log('eMart IT: using default settings');
       applySettings();
     }
+    setupVoice();
 
     var open = isBusinessOpen();
     if (!open && settings.offlineModeEnabled) {
@@ -634,6 +685,11 @@
       addBotMessage(settings.offlineMessage);
       return;
     }
+    stopListening();
+    clearIdle();
+    visitorMessages++;
+    idleStage = 0;
+    if (/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/.test(text) || /\d[\d\s().-]{6,}\d/.test(text)) contactShared = true;
     isTyping = true;
     inp.value = ''; inp.disabled = true; sendBtn.disabled = true;
     document.getElementById('emt-quick-replies').style.display = 'none';
@@ -664,6 +720,115 @@
     }
     isTyping = false;
     inp.disabled = false; sendBtn.disabled = false; inp.focus();
+    scheduleIdle();
+  }
+
+  // ============ VOICE TYPING (free: the browser's built-in speech recognition) ============
+  var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var recognizer = null;
+  var listening = false;
+
+  function setupVoice() {
+    var mic = document.getElementById('emt-mic');
+    // Not every browser supports it (e.g. Firefox): then the mic simply isn't shown
+    if (!SpeechRec || !settings.voiceInputEnabled) { mic.style.display = 'none'; return; }
+    mic.style.display = 'flex';
+    mic.onclick = function() { if (listening) stopListening(); else startListening(); };
+  }
+
+  function startListening() {
+    var inp = document.getElementById('emt-inp');
+    var mic = document.getElementById('emt-mic');
+    try { recognizer = new SpeechRec(); } catch(e) { return; }
+    recognizer.lang = settings.voiceLanguage || 'en-US';
+    recognizer.interimResults = true;
+    recognizer.continuous = false;
+    var before = inp.value.trim() ? inp.value.trim() + ' ' : '';
+    recognizer.onresult = function(ev) {
+      var said = '';
+      for (var i = 0; i < ev.results.length; i++) said += ev.results[i][0].transcript;
+      inp.value = before + said;
+    };
+    recognizer.onerror = function(ev) {
+      if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+        inp.placeholder = 'Microphone blocked: you can still type here';
+      }
+    };
+    recognizer.onend = function() {
+      listening = false;
+      mic.classList.remove('listening');
+      if (inp.placeholder === 'Listening… speak now') inp.placeholder = 'Type a message…';
+      inp.focus();
+    };
+    try {
+      recognizer.start();
+      listening = true;
+      mic.classList.add('listening');
+      inp.placeholder = 'Listening… speak now';
+      clearIdle();
+    } catch(e) { listening = false; }
+  }
+
+  function stopListening() {
+    if (recognizer && listening) { try { recognizer.stop(); } catch(e) {} }
+  }
+
+  // ============ READ REPLY ALOUD (free: the browser's built-in voice) ============
+  function plainText(text) {
+    return String(text || '')
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/^\s*[-•*]\s+/gm, '')
+      .replace(/^\s*#+\s*/gm, '')
+      .replace(/https?:\/\/\S+/g, 'the link in the chat')
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
+  }
+
+  function speakText(text, btn) {
+    var synth = window.speechSynthesis;
+    if (synth.speaking) {
+      synth.cancel();
+      if (btn.textContent === '⏹ Stop') { btn.textContent = '🔊 Listen'; return; }
+    }
+    document.querySelectorAll('.emt-speak').forEach(function(b) { b.textContent = '🔊 Listen'; });
+    var u = new SpeechSynthesisUtterance(plainText(text));
+    u.lang = settings.voiceLanguage || 'en-US';
+    u.rate = 1;
+    u.onend = function() { btn.textContent = '🔊 Listen'; };
+    btn.textContent = '⏹ Stop';
+    synth.speak(u);
+  }
+
+  // ============ IDLE REMINDERS (free: written in advance, no AI call) ============
+  var idleTimers = [];
+  var idleStage = 0;          // 0 = none sent, 1 = first reminder sent, 2 = goodbye sent (stop)
+  var visitorMessages = 0;
+  var contactShared = false;
+
+  function clearIdle() {
+    idleTimers.forEach(clearTimeout);
+    idleTimers = [];
+  }
+
+  function scheduleIdle() {
+    clearIdle();
+    // Only after the visitor has written something, only while the window is open, at most twice
+    if (!settings.idleRemindersEnabled || visitorMessages < 1 || !isOpen || idleStage >= 2) return;
+    if (idleStage === 0) {
+      idleTimers.push(setTimeout(function() {
+        if (!isOpen || isTyping) return;
+        addBotMessage(settings.idleMessage1 || DEFAULT_IDLE_1);
+        idleStage = 1;
+        scheduleIdle();
+      }, IDLE_FIRST_MS));
+    } else if (idleStage === 1) {
+      idleTimers.push(setTimeout(function() {
+        if (!isOpen || isTyping) return;
+        var goodbye = settings.idleMessage2 || DEFAULT_IDLE_2;
+        if (!contactShared) goodbye += '\n\n' + DEFAULT_IDLE_CONTACT;
+        addBotMessage(goodbye);
+        idleStage = 2;
+      }, IDLE_SECOND_MS - IDLE_FIRST_MS));
+    }
   }
 
 function startAnimation() {
@@ -718,14 +883,19 @@ function toggle() {
     if (isOpen) {
       stopAnimation();
       document.getElementById('emt-inp').focus();
+      scheduleIdle();
     } else {
-      }
+      clearIdle();
+      stopListening();
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    }
   }
 
   document.getElementById('emt-btn').onclick = toggle;
   document.getElementById('emt-x').onclick = toggle;
   document.getElementById('emt-send').onclick = send;
   document.getElementById('emt-inp').onkeydown = function(e) { if (e.key === 'Enter') send(); };
+  document.getElementById('emt-inp').addEventListener('input', function() { if (visitorMessages > 0 && idleStage < 2) scheduleIdle(); });
 
 applySettings();
   loadClientSettings();
