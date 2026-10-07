@@ -540,7 +540,9 @@
     var bw = document.createElement('div');
     bw.className = 'emt-wrap b';
     bw.innerHTML = '<div class="emt-msg emt-bot">' + fmtReply(text) + '</div><div class="emt-ts">' + getTime() + '</div>';
-    if (settings.readAloudEnabled && window.speechSynthesis && window.SpeechSynthesisUtterance) {
+    // Read aloud only for English: other languages often sound poor with built-in browser voices
+    var englishVoice = /^en(-|$)/i.test(settings.voiceLanguage || 'en-US');
+    if (settings.readAloudEnabled && englishVoice && window.speechSynthesis && window.SpeechSynthesisUtterance) {
       var speakBtn = document.createElement('button');
       speakBtn.className = 'emt-speak';
       speakBtn.type = 'button';
